@@ -1,0 +1,147 @@
+---
+title: 'Google Data Analyst Certificate: Case Study'
+author: "Matthew Dougherty"
+date: '2022-03-20'
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Scenario
+
+This case study represents the work of a junior data analyst working for a fictitious business intelligence consultant. I have been assigned the role of working with an insurance agency in the State of New York to develop and enroll current members in a safe driving program. The business tasks are as follows:
+      
+      1) Identify the target market for the safe driving program by identifying the demographic group with the          
+          most at fault accidents within a three year period.
+      2) Identify the top 5 violation types within that target group to provide safe driving development team           
+          with areas of focus for educational material.
+      
+## Data Set      
+The data for the project comes from the "NYS Motor Vehicle Crashes and Insurance Reduction" (v.3) data set on kaggle.com provided by the State of New York. To access the original data set used in this case study, see <https://www.kaggle.com/datasets/new-york-state/nys-motor-vehicle-crashes-and-insurance-reduction>. This data set is considered highly credible as it comes from a government source. 
+
+I began by reviewing the entire data set, which consisted of six .csv files. Two files were selected based on relevance to the business tasks. The two selected were the *motor-vehicle-crashes-individual-information-three-year-window.csv* file, and the *motor-vehicle-crashes-violation-information-three-year-window.csv* file. These files provide data on all the individuals involved in crashes in NYS from 2014 to 2016. Data can be compared between the two sets based on the case ID's, which will be vital in determining the demographics which individuals were simply involved in crashes and which were cited for a violation.
+
+## Tools
+RStudio was the primary tool used for the following tasks:
+    
+    1) Data Cleaning
+    2) Data Formatting
+    3) Data Analysis
+    4) Data Visualization
+    5) Documentation
+    
+R packages installed and loaded:
+
+```
+install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+install.packages("tidyr", repos = "http://cran.us.r-project.org")
+install.packages("readr", repos = "http://cran.us.r-project.org")
+install.packages("dplyr", repos = "http://cran.us.r-project.org")
+install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+```
+``` {r}
+library(tidyverse)
+library(tidyr)
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+    
+## Cleaning and Formatting
+
+First, I imported the relevant data sets to RStudio and created the initial data frames. 
+
+```{r}
+crash_report_individual <- read.csv("C:/Users/mdoug/Documents/motor-vehicle-crashes-individual-information-three-year-window.csv")
+
+crash_reports_violations <- read.csv("C:/Users/mdoug/Documents/motor-vehicle-crashes-violation-information-three-year-window.csv")
+```
+I then joined the two tables and removed any unnecessary columns.
+
+```{r}
+crash_report = crash_report_individual %>% full_join(crash_reports_violations, "Case.Individual.ID" = "Case_ID")
+colnames(crash_report)
+```
+
+```{r}
+crash_report_edit = subset(crash_report, select = -c(3,4,5,6,7,8,10,11,12,13,14,17))
+colnames(crash_report_edit)
+```
+
+By removing all columns except the five listed above, I limited the data to demographic information (Age and Sex). I then removed all null values to eliminate those individuals who were not associated with a violation and keep the demographic results in line with the business tasks.
+
+```{r}
+crash_report_edit <- drop_na(crash_report_edit)
+```
+
+When viewing the data frame at this point in the project, I noticed that there were several outlying data points that needed further cleaning. According to the business task, I am looking for a target group of insurable individuals which would exclude those under the Age of 16. To deliver on this goal, I removed all outlying ages and also removed any cases where the Sex of the individual was unknown.
+
+```{r}
+crash_report_edit <- subset(crash_report_edit, !(Age %in% c(4,6,7,9,11,12,13,14,15)))
+crash_report_edit <- subset(crash_report_edit, Sex != "U")
+```
+
+## Analysis
+#### Identifying Target Demographic
+The first step in my analysis is to view the number of crashes that occurred per demographic.
+```{r}
+crash_by_age <- crash_report_edit %>% group_by(Age) %>% count(Sex)
+colnames(crash_by_age)[3] <- ('Crashes_Reported')
+```
+Viewing the data by the number of crashes in descending order reveals that the demographic with the most crashes from 2014-2016 is Males aging 17-35, with Females age 21 barely making it into the top 20.
+
+![Crash Demographics Descending](C:/Users/mdoug/Pictures/crashes_desc.png)
+
+
+
+
+
+
+
+
+
+
+
+The drastic difference between Male and Female drivers between the ages of 17-35 is even more clear when viewing the data laid out in the following plot:
+
+```{r, echo=FALSE}
+e <- ggplot(crash_by_age, aes(Age,Crashes_Reported, color = Sex)) + labs(title = "NYS Crash Demographics 2014-2016")
+crashes_by_age_plot <- e + geom_point()
+plot(crashes_by_age_plot)
+```
+
+I then calculated what percentage of accidents Males between the ages of 17-35 accounted for from 2014-2016. 
+
+```{r}
+target_crash_num <- subset(crash_by_age, Sex == "M" & Age < 36 & Age > 16)
+sum(target_crash_num$Crashes_Reported)/sum(crash_by_age$Crashes_Reported) * 100
+```
+
+As shown above, Males between the ages of 17-35 accounted for approximately 40% of all accidents!   
+
+#### Identifying Areas of Focus
+In the final step of my analysis, I identified the 5 most common violations among the target group.
+
+```{r}
+crash_report_target <- subset(crash_report_edit, Sex == "M" & Age < 36 & Age > 16)
+crash_report_target %>% count(Violation.Description) %>% arrange(desc(n)) %>% head(5)
+```
+
+## Summary
+
+Based on my analysis the target market for the safe driving program should be Males aging 17-35 as they accounted for 40% of accidents in 2014-2016. The program should focus on safe driving habits such as keeping distance, following the speed limit, signalling and checking lanes before moving, and driving sober. 
+
+
+
+
+
+
+
+
+
